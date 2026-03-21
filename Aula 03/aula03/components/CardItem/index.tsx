@@ -1,4 +1,4 @@
-import { TouchableOpacity, TouchableOpacityProps, Text, View } from "react-native";
+import { Alert, TouchableOpacity, TouchableOpacityProps, Text, View, AlertButton } from "react-native";
 import { styles } from "./styles";
 import React, { ReactNode } from "react";
 import { Status, StatusType } from "@/components/Status";
@@ -7,7 +7,7 @@ type Props = TouchableOpacityProps & {
     title: string;
     description: string;
     value: number;
-    status: StatusType
+    status: StatusType;
     children?: ReactNode;
 }
 

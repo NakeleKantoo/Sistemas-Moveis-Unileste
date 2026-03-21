@@ -10,10 +10,11 @@ export const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#f0f0f0',
         display: 'flex',
-        flexDirection: 'row'
+        flexDirection: 'row',
     },
     textarea: {
         height: 48,
-        width: '100%'
+        width: '100%',
+        paddingLeft: 8
     }
 }) 

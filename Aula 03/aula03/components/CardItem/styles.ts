@@ -10,9 +10,13 @@ export const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 16,
         paddingVertical: 8,
-        marginVertical: 4
+        marginVertical: 4,
+        borderColor: '#ddd',
+        borderWidth: 1
     },
     column: {
         display: 'flex', flexDirection:'column',
+        justifyContent: 'space-between',
+        gap: 8
     }
 }); 

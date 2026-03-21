@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { FlatList, ScrollView, Text, View } from 'react-native';
 import styles from './styles'
 import { Button } from '@/components/Button';
@@ -6,21 +6,18 @@ import { Input } from '@/components/Input';
 import { CardItem } from '@/components/CardItem';
 import { Plus, Search, Settings2 } from 'lucide-react-native'
 import { StatusType } from '@/components/Status';
+import { AddModal } from '@/components/AddModal';
+import { ItemsStorage, itemsStorage } from '@/storage/ItemStorage';
+import { EditModal } from '@/components/EditModal';
 
 
-type Orcamento = {
+export type Orcamento = {
+  id: string
   title: string;
   description: string;
   value: number;
   status: StatusType;
 }
-
-const DATA = [
-  {title: 'oi', description: 'oi', value: 1, status: 'Rascunho'} as Orcamento,
-  {title: 'oi', description: 'oi', value: 2, status: 'Aprovado'} as Orcamento,
-  {title: 'oi', description: 'oi', value: 3, status: 'Aprovado'} as Orcamento,
-  {title: 'oi', description: 'oi', value: 40000, status: 'Aprovado'} as Orcamento,
-] as Orcamento[];
 
 const TABS = [
   'Todos',
@@ -34,9 +31,37 @@ type activeTabType = StatusType | 'Todos'
 
 
 const Main = () => {
-  const [orcamentos, setOrcamentos] = useState(DATA);
-  const [displayOrcamentos, setDisplayOrcamentos] = useState(orcamentos);
+  const [orcamentos, setOrcamentos] = useState([] as Orcamento[]);
   const [activeTab, setActiveTab] = useState('Todos' as activeTabType);
+
+  const [addModalVisible, setAddModalVisible] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [itemEditing, setItemEditing] = useState({} as ItemsStorage)
+
+  async function getOrcamentos() {
+    setOrcamentos(await itemsStorage.get());
+    const curr = activeTab
+    changeActiveTab(curr);
+  }
+
+  useEffect(() => {
+    getOrcamentos();
+  }, []);
+
+  async function handleAddOrcamento(orcamento: ItemsStorage) {
+    await itemsStorage.add(orcamento);
+    await getOrcamentos();
+  }
+  
+  async function handleRemove(orcamento: ItemsStorage) {
+    await itemsStorage.remove(orcamento);
+    await getOrcamentos();
+  }
+
+  async function handleEditing(orcamento: ItemsStorage) {
+    await itemsStorage.update(orcamento);
+    await getOrcamentos();
+  }
 
   function getNumberOfRascunhos():number {
     const somenteRascunhos = orcamentos.filter((orc) => orc.status=='Rascunho');
@@ -50,22 +75,13 @@ const Main = () => {
     return styles.inactiveTab
   }
 
-  function changeActiveTab(tabName: activeTabType) {
+  async function changeActiveTab(tabName: activeTabType) {
     switch (tabName) {
-      case 'Aprovado':
-        setDisplayOrcamentos(orcamentos.filter((orc) => orc.status == 'Aprovado'));
-        break;  
-      case 'Rascunho':
-        setDisplayOrcamentos(orcamentos.filter((orc) => orc.status == 'Rascunho'));
-        break;  
-      case 'Recusado':
-        setDisplayOrcamentos(orcamentos.filter((orc) => orc.status == 'Recusado'));
-        break;  
-      case 'Enviado':
-        setDisplayOrcamentos(orcamentos.filter((orc) => orc.status == 'Enviado'));
-        break;  
       case 'Todos':
-        setDisplayOrcamentos(orcamentos);
+        setOrcamentos(await itemsStorage.get())
+        break;
+      default:
+        setOrcamentos(await itemsStorage.getByStatus(tabName));
         break;
     }
     setActiveTab(tabName);
@@ -86,30 +102,27 @@ const Main = () => {
 
 
         {/*Lado direito superior */}
-        <Button style={[styles.right, styles.button]}>
+        <Button onPress={() => setAddModalVisible(true)} style={[styles.right, styles.button]}>
           <Plus color={"#fff"} />
           <Text style={[{ fontSize: 18, color: '#fff', paddingLeft: 4, fontWeight: '500' }]}>Novo</Text>
         </Button>
-
       </View>
-
-
-      <View style={[styles.flexRow, { gap: 8 }]}> {/* aqui é a seção dos inputs */}
+      
+      {/* aqui é a seção dos inputs */}
+      <View style={[styles.flexRow, { gap: 8 }]}>
         <View style={{ flex: 1, flexGrow: 1 }}>
-          <Input placeholder='Título ou cliente'>
-            <Search color='#4a4a4a' style={{ marginTop: 'auto', marginBottom: 'auto', marginHorizontal: 16 }} size={22} />
-          </Input>
+          <Input placeholder='Título ou cliente'><Search color='#4a4a4a' style={{ marginTop: 'auto', marginBottom: 'auto', marginHorizontal: 16 }} size={22} /></Input>
         </View>
-
         <View style={{ flexShrink: 1 }}>
           <Button style={[styles.right, styles.button, { backgroundColor: '#fff', borderColor: '#f0f0f0', borderWidth: 2 }]}>
             <Settings2 color='#6a46eb' />
           </Button>
         </View>
       </View>
-
-      <View style={[styles.flexRow, {marginVertical: 8}]}> {/* aqui é a seção das abas */}
-        <ScrollView horizontal style={{flex:1}} contentContainerStyle={{gap: 8}}>
+      
+      {/* aqui é a seção das abas */}
+      <View style={[styles.flexRow, {marginVertical: 8}]}>
+        <ScrollView horizontal style={{flex:1}} contentContainerStyle={{gap: 8}} showsHorizontalScrollIndicator={false}>
           {TABS.map((tabName,i) => (
             <Button key={i} style={[styles.buttonTab, getActiveTabStyle(tabName as activeTabType)]}
             onPress={() => changeActiveTab(tabName as activeTabType)}>
@@ -118,21 +131,26 @@ const Main = () => {
           ))}
         </ScrollView>
       </View>
-
-      <View style={styles.flexRow}> {/* aqui é a seção dos cards */}
+      
+      {/* aqui é a seção dos cards */}
+      <View style={styles.flexRow}>
         <FlatList
-        data={displayOrcamentos}
+        data={orcamentos}
         renderItem={({item}) => 
         <CardItem 
         title={item.title} 
         description={item.description} 
         value={item.value}
         status={item.status}
+        onPress={() => {setItemEditing(item); setEditing(true);}}
         />}
-        keyExtractor={(item) => item.title+item.status+item.value}
+        keyExtractor={(item) => item.id}
         />
       </View>
 
+
+      <AddModal visible={addModalVisible} setVisible={setAddModalVisible} callback={async (orc:ItemsStorage) => {await handleAddOrcamento(orc); setAddModalVisible(false)}}/>
+      <EditModal visible={editing} setVisible={setEditing} onEdit={async (i:ItemsStorage) => {await handleEditing(i); setEditing(false)}} item={itemEditing} onRemove={async (orc:ItemsStorage) => {await handleRemove(orc); setEditing(false)}}/>
     </View>
   );
 }
