@@ -26,7 +26,7 @@ export function CardItem({ title, description, value, status, ...rest }: Props) 
                 <Status status={status}/>
                 <View style={{flex:1, flexDirection:'row'}}>
                     <Text style={{fontSize:12, verticalAlign:'bottom', marginHorizontal:4}}>R$</Text>
-                    <Text style={{fontSize:14, fontWeight: 'bold'}}>{value.toLocaleString('pt-BR')}</Text>
+                    <Text style={{fontSize:14, fontWeight: 'bold'}}>{value?.toLocaleString('pt-BR')}</Text>
                 </View>
             </View>
         </TouchableOpacity>

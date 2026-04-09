@@ -1,4 +1,4 @@
-import { Text, View, ModalProps, Modal, Alert } from "react-native";
+import { Text, View, ModalProps, Modal, Alert, Pressable } from "react-native";
 import { styles } from "./styles";
 import React, { useEffect, useState } from "react";
 import { Input } from "@/components/Input";
@@ -50,8 +50,10 @@ export function EditModal({item, onEdit, onRemove, setVisible, visible, ...rest 
     }
 
     return (
-        <Modal transparent={true} visible={visible} animationType="slide">
-            <View style={[styles.background]}>
+        <Modal transparent={true} visible={visible} animationType="slide"
+        onRequestClose={(v) => setVisible(false)}
+        >
+            <Pressable style={[styles.background]} onPress={() => setVisible(false)}>
                 <View style={[styles.modal]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink:1 }}>
                         <Text style={{fontSize: 20, fontWeight:'500'}}>Editar orçamento</Text>
@@ -93,7 +95,7 @@ export function EditModal({item, onEdit, onRemove, setVisible, visible, ...rest 
                         </Button>
                     </View>
                 </View>
-            </View>
+            </Pressable>
         </Modal>
     );
 }

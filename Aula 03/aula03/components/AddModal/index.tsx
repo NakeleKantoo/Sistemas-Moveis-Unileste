@@ -1,4 +1,4 @@
-import { TouchableOpacity, TouchableOpacityProps, Text, View, ModalProps, Modal } from "react-native";
+import { TouchableOpacity, TouchableOpacityProps, Text, View, ModalProps, Modal, Pressable } from "react-native";
 import { styles } from "./styles";
 import React, { ReactNode, useEffect, useState } from "react";
 import { Input } from "@/components/Input";
@@ -49,8 +49,9 @@ export function AddModal({ callback, setVisible, visible, ...rest }: Props) {
     }
 
     return (
-        <Modal transparent={true} visible={visible} animationType="slide">
-            <View style={[styles.background]}>
+        <Modal transparent={true} visible={visible} animationType="fade"
+        onRequestClose={(v) => setVisible(false)}>
+            <Pressable style={[styles.background]} onPress={() => setVisible(false)}>
                 <View style={[styles.modal]}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', flexShrink:1 }}>
                         <Text style={{fontSize: 20, fontWeight:'500'}}>Adicionar orçamento</Text>
@@ -84,7 +85,7 @@ export function AddModal({ callback, setVisible, visible, ...rest }: Props) {
                         </Button>
                     </View>
                 </View>
-            </View>
+            </Pressable>
         </Modal>
     );
 }
