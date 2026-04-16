@@ -55,6 +55,7 @@ function RootLayoutNav() {
         <Stack.Screen name="add" />
         <Stack.Screen name="[meta]" />
         <Stack.Screen name="transacao/add/[meta]" />
+        <Stack.Screen name="transacao/edit/[meta]/[tid]" />
         <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>

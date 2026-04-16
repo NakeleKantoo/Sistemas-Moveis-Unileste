@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
 import { ArrowLeft, Pencil, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams, Link, useNavigation } from 'expo-router';
-import { goalType } from './home';
+import { goalType, transactionType } from './home';
 import { itemsStorage } from '@/components/Storage';
 import { FlatList } from 'react-native';
 
@@ -14,7 +14,19 @@ export default function GoalDetailScreen() {
     const [goal, setGoal] = useState({} as goalType);
 
     const loadItem = async () => {
-        setGoal((await itemsStorage.getById(metaid.meta as string)).at(0)!);
+        const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
+        setGoal(g);
+
+        let curr = 0
+        g.transacoes.forEach((v) => {
+            curr += v.valor;
+        });
+
+        g.current = curr;
+
+        await itemsStorage.update(g);
+
+
     }
 
     useEffect(() => {
@@ -22,8 +34,17 @@ export default function GoalDetailScreen() {
     }, [])
 
     navigation.addListener('focus', loadItem);
-    
-    
+
+
+    const handleRemoveTransaction = async (tx: transactionType) => {
+        goal.transacoes = goal.transacoes.filter((v) => v.id !== tx.id)
+
+        goal.current -= tx.valor;
+
+        await itemsStorage.update(goal);
+        await loadItem();
+    }
+
 
     return (
         <SafeAreaView style={styles.container}>
@@ -34,12 +55,19 @@ export default function GoalDetailScreen() {
                 <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()}>
                     <ArrowLeft size={24} color="#000" />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.headerIcon}>
-                    <Pencil size={20} color="#000" />
-                </TouchableOpacity>
+                
+                <Link href={{
+                    pathname:'/meta/edit/[meta]',
+                    params:{meta: goal.id}
+                }} asChild>
+                    <TouchableOpacity style={styles.headerIcon}>
+                        <Pencil size={20} color="#000" />
+                    </TouchableOpacity>
+                </Link>
+
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+            <View style={styles.scrollContent}>
                 {/* Título da Meta */}
                 <Text style={styles.goalTitle}>{goal?.title}</Text>
 
@@ -49,59 +77,68 @@ export default function GoalDetailScreen() {
                     <View style={styles.progressValueRow}>
                         <Text style={styles.savedAmount}>R$ {goal?.current?.toFixed(2).replace('.', ',')}</Text>
                         <Text style={styles.targetAmount}> de R$ {goal?.total?.toFixed(2).replace('.', ',')}</Text>
-                        <Text style={styles.percentageText}>{(goal?.current/goal.total*100)?.toLocaleString('pt-BR').slice(0,4)}%</Text>
+                        <Text style={styles.percentageText}>{Math.max((goal?.current / goal.total * 100), 0)?.toLocaleString('pt-BR').slice(0, 4)}%</Text>
                     </View>
 
                     {/* Barra de Progresso Customizada */}
                     <View style={styles.progressBarBackground}>
-                        <View style={[styles.progressBarFill, { width: `${(goal.current/goal.total*100)}%` }]} />
+                        <View style={[styles.progressBarFill, { width: `${Math.max(goal.current / goal.total * 100, 0)}%` }]} />
                     </View>
                 </View>
+
+
 
                 {/* Seção de Transações */}
                 <View style={styles.transactionsSection}>
                     <Text style={styles.sectionTitle}>Transações</Text>
 
                     <FlatList
-                    data={goal.transacoes}
-                    renderItem ={(i) => {const tx= i.item; return (
-                        <View key={tx.id} style={styles.transactionItem}>
-                            <View style={styles.txIconContainer}>
-                                {tx.valor > 0 ? (
-                                    <ArrowUpRight size={20} color="#3B4CCA" /> // Azul para entrada
-                                ) : (
-                                    <ArrowDownLeft size={20} color="#F87171" /> // Vermelho para saída
-                                )}
-                            </View>
+                        data={goal.transacoes}
+                        renderItem={(i) => {
+                            const tx = i.item; return (
+                                <Link href={{
+                                    pathname: '/transacao/edit/[meta]/[tid]',
+                                    params: { tid: tx.id, meta: goal.id }
+                                }} asChild>
+                                    <TouchableOpacity key={tx.id} style={styles.transactionItem}>
+                                        <View style={styles.txIconContainer}>
+                                            {tx.valor > 0 ? (
+                                                <ArrowUpRight size={20} color="#3B4CCA" /> // Azul para entrada
+                                            ) : (
+                                                <ArrowDownLeft size={20} color="#F87171" /> // Vermelho para saída
+                                            )}
+                                        </View>
 
-                            <View style={styles.txDetails}>
-                                <Text style={styles.txAmount}>
-                                    {tx.valor < 0 ? `- R$ ${Math.abs(tx.valor).toFixed(2).replace('.', ',')}` : `R$ ${tx.valor.toFixed(2).replace('.', ',')}`}
-                                </Text>
-                                <View style={styles.txSubtextRow}>
-                                    {tx.descricao ? (
-                                        <Text style={styles.txDescription}> • {tx.descricao}</Text>
-                                    ) : null}
-                                </View>
-                            </View>
+                                        <View style={styles.txDetails}>
+                                            <Text style={styles.txAmount}>
+                                                {tx.valor < 0 ? `- R$ ${Math.abs(tx.valor).toFixed(2).replace('.', ',')}` : `R$ ${tx.valor.toFixed(2).replace('.', ',')}`}
+                                            </Text>
+                                            <View style={styles.txSubtextRow}>
+                                                {tx.descricao ? (
+                                                    <Text style={styles.txDescription}> {tx.descricao}</Text>
+                                                ) : null}
+                                            </View>
+                                        </View>
 
-                            <TouchableOpacity style={styles.deleteIconContainer}>
-                                <X size={18} color="#999" />
-                            </TouchableOpacity>
-                        </View>
-                    )}} />
+                                        <TouchableOpacity style={styles.deleteIconContainer} onPress={() => handleRemoveTransaction(tx)}>
+                                            <X size={18} color="#999" />
+                                        </TouchableOpacity>
+                                    </TouchableOpacity>
+                                </Link>
+                            )
+                        }} />
                 </View>
-            </ScrollView>
+            </View>
 
             {/* Botão Inferior Fixo */}
             <View style={styles.footer}>
                 <Link href={{
-                    pathname:'/transacao/add/[meta]',
-                    params: {meta: goal.id}
+                    pathname: '/transacao/add/[meta]',
+                    params: { meta: goal.id }
                 }} asChild>
-                <TouchableOpacity style={styles.button}>
-                    <Text style={styles.buttonText}>Nova transação</Text>
-                </TouchableOpacity>
+                    <TouchableOpacity style={styles.button}>
+                        <Text style={styles.buttonText}>Nova transação</Text>
+                    </TouchableOpacity>
                 </Link>
             </View>
         </SafeAreaView>
@@ -175,7 +212,7 @@ const styles = StyleSheet.create({
         borderRadius: 3,
     },
     transactionsSection: {
-        flex: 1,
+        flexDirection: 'column'
     },
     sectionTitle: {
         fontSize: 18,

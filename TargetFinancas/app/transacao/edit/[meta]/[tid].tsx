@@ -11,13 +11,13 @@ import {
   TouchableWithoutFeedback,
   Keyboard
 } from 'react-native';
-import { ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react-native';
+import { ArrowLeft, ArrowUp, ArrowDown, Trash2 } from 'lucide-react-native';
 import { goalType, transactionType } from '@/app/home';
 import { itemsStorage } from '@/components/Storage';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 
 
-export default function NewTransactionScreen() {
+export default function TransactionEdit() {
   const [type, setType] = useState<'guardar' | 'resgatar'>('guardar');
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');
@@ -27,8 +27,16 @@ export default function NewTransactionScreen() {
 
   const [goal, setGoal] = useState({} as goalType);
 
+  const [tx, setTx] = useState({} as transactionType);
+
   const loadItem = async () => {
-    setGoal((await itemsStorage.getById(metaid.meta as string)).at(0)!);
+    const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
+    setGoal(g);
+    const t = g.transacoes.filter((v) => v.id == metaid.tid).at(0)!;
+    setTx(t);
+    setValue(Math.abs(t.valor)?.toString());
+    setReason(t.descricao!);
+    setType(t.valor! > 0 ? 'guardar' : 'resgatar');
   }
 
   useEffect(() => {
@@ -38,12 +46,28 @@ export default function NewTransactionScreen() {
   const handleNewTransaction = async () => {
     const transaction = {} as transactionType;
     transaction.descricao = reason;
-    transaction.valor = Number.parseFloat(value)  * (type === 'guardar'? 1 : -1);
+    transaction.valor = Number.parseFloat(value) * (type === 'guardar' ? 1 : -1);
     transaction.id = value + Date.now();
 
-    goal.transacoes.push(transaction);
 
+    goal.transacoes = goal.transacoes.map(v => {
+      if (v.id == tx.id) {
+        return transaction;
+      }
+      return v;
+    })
+
+    goal.current -= tx.valor;
     goal.current += transaction.valor;
+
+    await itemsStorage.update(goal);
+    router.back();
+  }
+
+  const handleRemoveTransaction = async () => {
+    goal.transacoes.filter((v) => v.id !== tx.id)
+
+    goal.current -= tx.valor;
 
     await itemsStorage.update(goal);
     router.back();
@@ -62,6 +86,10 @@ export default function NewTransactionScreen() {
             <View style={styles.header}>
               <TouchableOpacity onPress={() => router.back()}>
                 <ArrowLeft size={28} color="#000" />
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={() => handleRemoveTransaction()}>
+                <Trash2 size={28} color="#000" />
               </TouchableOpacity>
             </View>
 
@@ -139,6 +167,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 10,
     height: 60,

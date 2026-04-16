@@ -12,9 +12,10 @@ import {
     KeyboardAvoidingView,
     Platform,
     TouchableWithoutFeedback,
-    Keyboard
+    Keyboard,
+    Alert
 } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, Trash2 } from 'lucide-react-native';
 import { navigate } from 'expo-router/build/global-state/routing';
 
 export default function AddGoalScreen() {
@@ -27,7 +28,10 @@ export default function AddGoalScreen() {
     const [goal, setGoal] = useState({} as goalType);
 
     const loadItem = async () => {
-        setGoal((await itemsStorage.getById(metaid.meta as string)).at(0)!);
+        const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
+        setGoal(g);
+        setGoalName(g.title);
+        setTargetValue(g.total.toString());
     }
 
     useEffect(() => {
@@ -35,9 +39,22 @@ export default function AddGoalScreen() {
     }, [])
 
     const handleAddGoals = async () => {
-        const goal = { id: goalName + Date.now(), title: goalName, total: Number.parseFloat(targetValue), current: 0, transacoes: [] } as goalType
-        await itemsStorage.add(goal);
+        const g = { id: goal.id, title: goalName, total: Number.parseFloat(targetValue), current: goal.current, transacoes: goal.transacoes } as goalType
+        await itemsStorage.update(g);
         router.back();
+    }
+
+    const handleRemoveGoal = async () => {
+        let goAhead = false;
+        //Alert.prompt('Tem certeza?', 'Remover a meta é permanente.', [{ text: 'Sim', onPress: () => goAhead = true }, { text: 'Não' }])
+        goAhead = true;
+        if (goAhead) {
+            await itemsStorage.remove(goal);
+            router.navigate('/home');
+        }
+
+
+
     }
 
     return (
@@ -53,6 +70,9 @@ export default function AddGoalScreen() {
                         <View style={styles.header}>
                             <TouchableOpacity onPress={() => { router.back() }}>
                                 <ArrowLeft size={28} color="#000" />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => handleRemoveGoal()}>
+                                <Trash2 size={28} color="#000" />
                             </TouchableOpacity>
                         </View>
 
@@ -108,10 +128,12 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
         paddingHorizontal: 16,
         paddingTop: 10,
         height: 60,
-        justifyContent: 'center',
     },
     content: {
         flex: 1,

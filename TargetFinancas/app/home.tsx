@@ -36,10 +36,7 @@ export default function Dashboard() {
   useEffect(() => { getGoals(); }, []);
 
   const calculateTotalMoney = (): number => {
-    let total = 0;
-    goals.forEach((v) => {
-      total += v.current;
-    });
+    const total = calculateGains() + calculateLosses();
     return total;
   }
 
@@ -87,7 +84,7 @@ export default function Dashboard() {
               <ArrowDown size={16} color="#F87171" />
               <Text style={styles.statLabel}>Saídas</Text>
             </View>
-            <Text style={styles.statValue}>-R$ {calculateLosses().toFixed(2)}</Text>
+            <Text style={styles.statValue}>- R$ {Math.abs(calculateLosses()).toFixed(2)}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -104,7 +101,7 @@ export default function Dashboard() {
                 <View style={styles.goalInfo}>
                   <Text style={styles.goalTitle}>{goal.title}</Text>
                   <Text style={styles.goalSubtext}>
-                    {(goal.current / goal.total * 100).toLocaleString('pt-BR').slice(0, 4)}% • R$ {goal.current.toLocaleString('pt-BR')} de R$ {goal.total.toLocaleString('pt-BR')}
+                    {Math.max(goal.current / goal.total * 100,0).toLocaleString('pt-BR').slice(0, 4)}% • R$ {goal.current.toLocaleString('pt-BR')} de R$ {goal.total?.toLocaleString('pt-BR')}
                   </Text>
                 </View>
                 <ChevronRight size={20} color="#666" />
