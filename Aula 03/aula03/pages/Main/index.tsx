@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FlatList, ScrollView, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import styles from './styles'
 import { Button } from '@/components/Button';
 import { Input } from '@/components/Input';
@@ -111,7 +111,9 @@ const Main = () => {
       {/* aqui é a seção dos inputs */}
       <View style={[styles.flexRow, { gap: 8 }]}>
         <View style={{ flex: 1, flexGrow: 1 }}>
-          <Input placeholder='Título ou cliente'><Search color='#4a4a4a' style={{ marginTop: 'auto', marginBottom: 'auto', marginHorizontal: 16 }} size={22} /></Input>
+          <Input placeholder='Título ou cliente'>
+          <Search color='#4a4a4a' style={{ marginTop: 'auto', marginBottom: 'auto', marginHorizontal: 16 }} size={22} />
+          </Input>
         </View>
         <View style={{ flexShrink: 1 }}>
           <Button style={[styles.right, styles.button, { backgroundColor: '#fff', borderColor: '#f0f0f0', borderWidth: 2 }]}>
@@ -131,7 +133,7 @@ const Main = () => {
           ))}
         </ScrollView>
       </View>
-      
+
       {/* aqui é a seção dos cards */}
       <View style={styles.flexRow}>
         <FlatList
