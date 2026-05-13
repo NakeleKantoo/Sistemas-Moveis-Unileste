@@ -1,20 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import { transactionType } from '@/app/home';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { ArrowDown, ArrowLeft, ArrowUp } from 'lucide-react-native';
+import React, { useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
-  Keyboard
+  View
 } from 'react-native';
-import { ArrowLeft, ArrowUp, ArrowDown } from 'lucide-react-native';
-import { goalType, transactionType } from '@/app/home';
-import { itemsStorage } from '@/components/Storage';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 
 
 export default function NewTransactionScreen() {
@@ -25,27 +25,16 @@ export default function NewTransactionScreen() {
   const router = useRouter();
   const metaid = useLocalSearchParams();
 
-  const [goal, setGoal] = useState({} as goalType);
-
-  const loadItem = async () => {
-    setGoal((await itemsStorage.getById(metaid.meta as string)).at(0)!);
-  }
-
-  useEffect(() => {
-    loadItem();
-  }, [])
+  const db = useSQLiteContext();
 
   const handleNewTransaction = async () => {
     const transaction = {} as transactionType;
-    transaction.descricao = reason;
+    transaction.nome = reason;
     transaction.valor = Number.parseFloat(value)  * (type === 'guardar'? 1 : -1);
-    transaction.id = value + Date.now();
+    
 
-    goal.transacoes.push(transaction);
-
-    goal.current += transaction.valor;
-
-    await itemsStorage.update(goal);
+    db.runAsync(`INSERT INTO transacoes (nome, valor, meta_id) VALUES (?,?,?)`, [transaction.nome, transaction.valor, metaid.meta as string])
+    
     router.back();
   }
 

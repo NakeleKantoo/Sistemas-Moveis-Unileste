@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
-import { ArrowUp, ArrowDown, ChevronRight } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { FlatList } from 'react-native';
-import { itemsStorage } from '@/components/Storage';
-import { Link, useNavigation } from 'expo-router';
+import { useNavigation } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { ArrowDown, ArrowUp, ChevronRight } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 
 export type goalType = {
@@ -18,7 +17,8 @@ export type goalType = {
 export type transactionType = {
   id: string;
   valor: number;
-  descricao: string;
+  nome: string;
+  meta_id: string;
 }
 
 export default function Dashboard() {
@@ -26,38 +26,44 @@ export default function Dashboard() {
 
   const navigation = useNavigation();
 
-  
+  const db = useSQLiteContext();
+  const getAllFromDatabase = async () => {
+    let res = await db.getAllAsync(`
+      SELECT
+        m.id,
+        m.title,
+        m.total,
+        COALESCE(SUM(t.valor), 0) AS current
+      FROM meta m
+      LEFT JOIN transacoes t ON t.meta_id = m.id
+      GROUP BY m.id, m.title, m.total;
+      `) as goalType[];
+      res.map((v:goalType) => {return {...v, transacoes:[]}})
+      return res;
+  }
+
+
   const getGoals = async () => {
-    setGoals(await itemsStorage.get());
+    setGoals(await getAllFromDatabase() as goalType[]);
   };
 
   navigation.addListener('focus', getGoals); //reload quando focar
-  
+
   useEffect(() => { getGoals(); }, []);
 
-  const calculateTotalMoney = (): number => {
-    const total = calculateGains() + calculateLosses();
+  const calculateTotalMoney = async (): Promise<number> => {
+    const total = await calculateGains() - await calculateLosses();
     return total;
   }
 
-  const calculateGains = (): number => {
-    let total = 0;
-    goals.forEach((v) => {
-      v.transacoes.forEach((vv) => {
-        vv.valor > 0 ? total += vv.valor : total += 0
-      });
-    });
-    return total;
+  const calculateGains = async (): Promise<number> => {
+    let total = (await db.getFirstAsync(`SELECT sum(t.valor) as sum FROM transacoes t WHERE t.valor>0`)) as {sum:number};
+    return total.sum??0;
   }
 
-  const calculateLosses = (): number => {
-    let total = 0;
-    goals.forEach((v) => {
-      v.transacoes.forEach((vv) => {
-        vv.valor <= 0 ? total += vv.valor : total += 0
-      });
-    });
-    return total;
+  const calculateLosses = async (): Promise<number> => {
+    let total = (await db.getFirstAsync(`SELECT sum(t.valor) as sum FROM transacoes t WHERE t.valor<0`)) as {sum:number};
+    return Math.abs(total.sum)??0;
   }
 
 
@@ -68,7 +74,7 @@ export default function Dashboard() {
       {/* Blue Header Section */}
       <LinearGradient colors={['#5B50FA', '#120026']} style={styles.header}>
         <Text style={styles.balanceLabel}>Total que você possui</Text>
-        <Text style={styles.balanceAmount}>R$ {calculateTotalMoney().toFixed(2)}</Text>
+        <Text style={styles.balanceAmount}>R$ {calculateTotalMoney()}</Text>
 
         <View style={styles.statsContainer}>
           <View style={styles.statsItem}>
@@ -76,7 +82,7 @@ export default function Dashboard() {
               <ArrowUp size={16} color="#4ADE80" />
               <Text style={styles.statLabel}>Entradas</Text>
             </View>
-            <Text style={styles.statValue}>R$ {calculateGains().toFixed(2)}</Text>
+            <Text style={styles.statValue}>R$ {calculateGains()}</Text>
           </View>
 
           <View style={[styles.statsItem, { alignItems: 'flex-end' }]}>
@@ -84,7 +90,7 @@ export default function Dashboard() {
               <ArrowDown size={16} color="#F87171" />
               <Text style={styles.statLabel}>Saídas</Text>
             </View>
-            <Text style={styles.statValue}>- R$ {Math.abs(calculateLosses()).toFixed(2)}</Text>
+            <Text style={styles.statValue}>- R$ {calculateLosses()}</Text>
           </View>
         </View>
       </LinearGradient>
@@ -93,15 +99,15 @@ export default function Dashboard() {
       <View style={styles.content}>
         <Text style={styles.sectionTitle}>Metas</Text>
 
-        {goals.length > 0 &&
+        
           <FlatList showsVerticalScrollIndicator={false}
             data={goals}
             renderItem={(item) => {
-              const goal = item.item; return <TouchableOpacity key={goal.id} style={styles.goalItem} onPress={() => navigation.navigate({name: '[meta]', pathname: '/[meta]', params: {meta: goal.id}} as never)}>
+              const goal = item.item; return <TouchableOpacity key={goal.id} style={styles.goalItem} onPress={() => navigation.navigate({ name: '[meta]', pathname: '/[meta]', params: { meta: goal.id } } as never)}>
                 <View style={styles.goalInfo}>
                   <Text style={styles.goalTitle}>{goal.title}</Text>
                   <Text style={styles.goalSubtext}>
-                    {Math.max(goal.current / goal.total * 100,0).toLocaleString('pt-BR').slice(0, 4)}% • R$ {goal.current.toLocaleString('pt-BR')} de R$ {goal.total?.toLocaleString('pt-BR')}
+                    {Math.max(goal.current / goal.total * 100, 0).toLocaleString('pt-BR').slice(0, 4)}% • R$ {goal.current.toLocaleString('pt-BR')} de R$ {goal.total?.toLocaleString('pt-BR')}
                   </Text>
                 </View>
                 <ChevronRight size={20} color="#666" />
@@ -109,7 +115,7 @@ export default function Dashboard() {
             }}
             keyExtractor={(item) => item.id}
           />
-        }
+        
 
         {goals.length == 0 &&
           <View style={{ flex: 1, justifyContent: 'center' }}>

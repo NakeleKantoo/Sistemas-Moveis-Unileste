@@ -1,32 +1,42 @@
+import { Link, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { ArrowDownLeft, ArrowLeft, ArrowUpRight, Pencil, X } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
-import { ArrowLeft, Pencil, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react-native';
-import { useRouter, useLocalSearchParams, Link, useNavigation } from 'expo-router';
+import { FlatList, SafeAreaView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { goalType, transactionType } from './home';
-import { itemsStorage } from '@/components/Storage';
-import { FlatList } from 'react-native';
 
 export default function GoalDetailScreen() {
     const router = useRouter();
     const navigation = useNavigation();
     const metaid = useLocalSearchParams();
 
+    const db = useSQLiteContext();
+
+
+
     const [goal, setGoal] = useState({} as goalType);
 
     const loadItem = async () => {
-        const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
+        //const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
+        const g = await db.getFirstAsync(`
+            SELECT
+                m.id,
+                m.title,
+                m.total,
+                COALESCE(SUM(t.valor), 0) AS current
+            FROM meta m
+            LEFT JOIN transacoes t ON t.meta_id = m.id
+            WHERE m.id = ?
+            GROUP BY m.id, m.title, m.total;
+      `, [metaid.meta as string])! as goalType;
+
+        const transacoes = await db.getAllAsync(`
+            SELECT * FROM transacoes WHERE meta_id = ?
+        `, [metaid.meta as string]) as transactionType[];
+        
+        g.transacoes = transacoes;
+
         setGoal(g);
-
-        let curr = 0
-        g.transacoes.forEach((v) => {
-            curr += v.valor;
-        });
-
-        g.current = curr;
-
-        await itemsStorage.update(g);
-
-
     }
 
     useEffect(() => {
@@ -41,7 +51,8 @@ export default function GoalDetailScreen() {
 
         goal.current -= tx.valor;
 
-        await itemsStorage.update(goal);
+        await db.runAsync(`DELETE FROM transacoes WHERE id=?`,[tx.id]);
+
         await loadItem();
     }
 
@@ -55,10 +66,10 @@ export default function GoalDetailScreen() {
                 <TouchableOpacity style={styles.headerIcon} onPress={() => router.back()}>
                     <ArrowLeft size={24} color="#000" />
                 </TouchableOpacity>
-                
+
                 <Link href={{
-                    pathname:'/meta/edit/[meta]',
-                    params:{meta: goal.id}
+                    pathname: '/meta/edit/[meta]',
+                    params: { meta: goal.id }
                 }} asChild>
                     <TouchableOpacity style={styles.headerIcon}>
                         <Pencil size={20} color="#000" />
@@ -114,8 +125,8 @@ export default function GoalDetailScreen() {
                                                 {tx.valor < 0 ? `- R$ ${Math.abs(tx.valor).toFixed(2).replace('.', ',')}` : `R$ ${tx.valor.toFixed(2).replace('.', ',')}`}
                                             </Text>
                                             <View style={styles.txSubtextRow}>
-                                                {tx.descricao ? (
-                                                    <Text style={styles.txDescription}> {tx.descricao}</Text>
+                                                {tx.nome ? (
+                                                    <Text style={styles.txDescription}> {tx.nome}</Text>
                                                 ) : null}
                                             </View>
                                         </View>

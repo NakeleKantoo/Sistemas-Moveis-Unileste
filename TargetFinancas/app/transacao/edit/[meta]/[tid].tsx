@@ -1,20 +1,20 @@
+import { transactionType } from '@/app/home';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { ArrowDown, ArrowLeft, ArrowUp, Trash2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
 import {
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
-  Keyboard
+  View
 } from 'react-native';
-import { ArrowLeft, ArrowUp, ArrowDown, Trash2 } from 'lucide-react-native';
-import { goalType, transactionType } from '@/app/home';
-import { itemsStorage } from '@/components/Storage';
-import { useRouter, useLocalSearchParams } from 'expo-router';
 
 
 export default function TransactionEdit() {
@@ -25,17 +25,18 @@ export default function TransactionEdit() {
   const router = useRouter();
   const metaid = useLocalSearchParams();
 
-  const [goal, setGoal] = useState({} as goalType);
+  const db = useSQLiteContext();
+  
 
   const [tx, setTx] = useState({} as transactionType);
 
   const loadItem = async () => {
-    const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
-    setGoal(g);
-    const t = g.transacoes.filter((v) => v.id == metaid.tid).at(0)!;
+    
+    
+    const t = await db.getFirstAsync(`SELECT * FROM transacoes t WHERE t.id=?`,[metaid.tid as string]) as transactionType;
     setTx(t);
     setValue(Math.abs(t.valor)?.toString());
-    setReason(t.descricao!);
+    setReason(t.nome!);
     setType(t.valor! > 0 ? 'guardar' : 'resgatar');
   }
 
@@ -43,33 +44,21 @@ export default function TransactionEdit() {
     loadItem();
   }, [])
 
-  const handleNewTransaction = async () => {
+  const handleUpdateTransaction = async () => {
     const transaction = {} as transactionType;
-    transaction.descricao = reason;
+    transaction.nome = reason;
     transaction.valor = Number.parseFloat(value) * (type === 'guardar' ? 1 : -1);
-    transaction.id = value + Date.now();
-
-
-    goal.transacoes = goal.transacoes.map(v => {
-      if (v.id == tx.id) {
-        return transaction;
-      }
-      return v;
-    })
-
-    goal.current -= tx.valor;
-    goal.current += transaction.valor;
-
-    await itemsStorage.update(goal);
+    
+    await db.runAsync(`UPDATE transacoes
+                        SET nome=?, valor=?
+                        WHERE id=?`,[transaction.nome, transaction.valor, metaid.tid as string])
     router.back();
   }
 
   const handleRemoveTransaction = async () => {
-    goal.transacoes.filter((v) => v.id !== tx.id)
+    
+    await db.runAsync(`DELETE FROM transacoes WHERE id=?`,[metaid.tid as string]);
 
-    goal.current -= tx.valor;
-
-    await itemsStorage.update(goal);
     router.back();
   }
 
@@ -146,7 +135,7 @@ export default function TransactionEdit() {
               </View>
 
               {/* Botão Salvar */}
-              <TouchableOpacity style={styles.saveButton} onPress={() => handleNewTransaction()}>
+              <TouchableOpacity style={styles.saveButton} onPress={() => handleUpdateTransaction()}>
                 <Text style={styles.saveButtonText}>Salvar</Text>
               </TouchableOpacity>
             </View>

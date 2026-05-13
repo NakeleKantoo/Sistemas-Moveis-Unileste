@@ -1,30 +1,36 @@
-import React, { useState } from 'react';
 import { goalType } from '@/app/home';
-import { itemsStorage } from '@/components/Storage';
 import { useNavigation } from 'expo-router';
-import { 
-  StyleSheet, 
-  Text, 
-  View, 
-  TextInput, 
-  TouchableOpacity, 
-  SafeAreaView, 
-  KeyboardAvoidingView, 
-  Platform,
-  TouchableWithoutFeedback,
-  Keyboard
-} from 'react-native';
+import { useSQLiteContext } from 'expo-sqlite';
 import { ArrowLeft } from 'lucide-react-native';
+import React, { useState } from 'react';
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View
+} from 'react-native';
 
 export default function AddGoalScreen() {
   const [goalName, setGoalName] = useState('');
   const [targetValue, setTargetValue] = useState('');
 
+  const db = useSQLiteContext();
+
+  
+
   const navigate = useNavigation();
 
   const handleAddGoals = async () => {
     const goal = {id:goalName+Date.now(), title: goalName, total: Number.parseFloat(targetValue), current: 0, transacoes: []} as goalType
-    await itemsStorage.add(goal);
+    await db.runAsync(`
+      INSERT INTO meta (title, total) VALUES (?,?)
+      `, [goal.title, goal.total]);
     navigate.goBack();
   }
 

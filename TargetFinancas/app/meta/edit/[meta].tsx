@@ -1,22 +1,21 @@
-import React, { useEffect, useState } from 'react';
 import { goalType } from '@/app/home';
-import { itemsStorage } from '@/components/Storage';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSQLiteContext } from 'expo-sqlite';
+import { ArrowLeft, Trash2 } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import {
-    StyleSheet,
-    Text,
-    View,
-    TextInput,
-    TouchableOpacity,
-    SafeAreaView,
+    Alert,
+    Keyboard,
     KeyboardAvoidingView,
     Platform,
+    SafeAreaView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
     TouchableWithoutFeedback,
-    Keyboard,
-    Alert
+    View
 } from 'react-native';
-import { ArrowLeft, Trash2 } from 'lucide-react-native';
-import { navigate } from 'expo-router/build/global-state/routing';
 
 export default function AddGoalScreen() {
     const [goalName, setGoalName] = useState('');
@@ -27,11 +26,13 @@ export default function AddGoalScreen() {
 
     const [goal, setGoal] = useState({} as goalType);
 
+    const db = useSQLiteContext();
+
     const loadItem = async () => {
-        const g = (await itemsStorage.getById(metaid.meta as string)).at(0)!
+        const g = await db.getFirstAsync(`SELECT * FROM meta WHERE meta.id=?`,[metaid.meta as string])! as goalType;
         setGoal(g);
-        setGoalName(g.title);
-        setTargetValue(g.total.toString());
+        setGoalName(g?.title);
+        setTargetValue(g?.total.toString());
     }
 
     useEffect(() => {
@@ -39,22 +40,22 @@ export default function AddGoalScreen() {
     }, [])
 
     const handleAddGoals = async () => {
-        const g = { id: goal.id, title: goalName, total: Number.parseFloat(targetValue), current: goal.current, transacoes: goal.transacoes } as goalType
-        await itemsStorage.update(g);
+        const g = { id: goal.id, title: goalName, total: Number.parseFloat(targetValue), current: goal.current, transacoes: goal.transacoes } as goalType;
+
+        await db.runAsync(`UPDATE meta SET title=?, total=? WHERE id=?`, [g.title,g.total,metaid.meta as string]);
+
         router.back();
     }
 
     const handleRemoveGoal = async () => {
-        let goAhead = false;
-        //Alert.prompt('Tem certeza?', 'Remover a meta é permanente.', [{ text: 'Sim', onPress: () => goAhead = true }, { text: 'Não' }])
-        goAhead = true;
-        if (goAhead) {
-            await itemsStorage.remove(goal);
+
+        const remove = async () => {
+            await db.runAsync(`DELETE FROM meta WHERE id=?`, [metaid.meta as string]);
+            await db.runAsync(`DELETE FROM transacoes WHERE meta_id=?`,[metaid.meta as string]);
             router.navigate('/home');
         }
 
-
-
+        Alert.alert('Tem certeza?', 'Remover a meta é permanente.', [{ text: 'Sim', onPress: async () => await remove()}, { text: 'Não' }])
     }
 
     return (
